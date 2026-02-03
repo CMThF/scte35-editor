@@ -913,24 +913,34 @@ pub fn validate_patch_value(path: &str, value: &str) -> Result<(), String> {
                 return Err("splice_schedule components are not supported by encoder yet".into());
             } else {
                 let normalized = normalize_indexed_path(path).unwrap_or(path);
-                if normalized == "splice_insert.component[i].tag" {
-                    parse_u8(path, value)?;
-                } else if normalized == "splice_insert.component[i].pts_time" {
-                    parse_u64(path, value)?;
-                } else if normalized == "splice_insert.component[i].immediate" {
-                    parse_bool(path, value)?;
-                } else if normalized == "splice_schedule.component[i].tag" {
-                    parse_u8(path, value)?;
-                } else if normalized == "splice_schedule.component[i].splice_mode" {
-                    parse_u8(path, value)?;
-                } else if normalized == "splice_schedule.component[i].duration" {
-                    parse_u32(path, value)?;
-                } else if normalized == "splice_schedule.component[i].utc_splice_time" {
-                    parse_u32(path, value)?;
-                } else if normalized == "splice_schedule.component[i].duration_flag" {
-                    parse_bool(path, value)?;
-                } else {
-                    return Err(format!("unsupported component spec path '{path}'"));
+                match normalized {
+                    "splice_insert.component[i].tag" => {
+                        parse_u8(path, value)?;
+                    }
+                    "splice_insert.component[i].pts_time" => {
+                        parse_u64(path, value)?;
+                    }
+                    "splice_insert.component[i].immediate" => {
+                        parse_bool(path, value)?;
+                    }
+                    "splice_schedule.component[i].tag" => {
+                        parse_u8(path, value)?;
+                    }
+                    "splice_schedule.component[i].splice_mode" => {
+                        parse_u8(path, value)?;
+                    }
+                    "splice_schedule.component[i].duration" => {
+                        parse_u32(path, value)?;
+                    }
+                    "splice_schedule.component[i].utc_splice_time" => {
+                        parse_u32(path, value)?;
+                    }
+                    "splice_schedule.component[i].duration_flag" => {
+                        parse_bool(path, value)?;
+                    }
+                    _ => {
+                        return Err(format!("unsupported component spec path '{path}'"));
+                    }
                 }
             }
         }
@@ -1151,14 +1161,21 @@ fn ensure_descriptor_index(
     let mut count = section
         .splice_descriptors
         .iter()
-        .filter(|d| match (d, &kind) {
-            (scte35::SpliceDescriptor::Segmentation(_), DescriptorKind::Segmentation) => true,
-            (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail) => true,
-            (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf) => true,
-            (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time) => true,
-            (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio) => true,
-            (scte35::SpliceDescriptor::Unknown { .. }, DescriptorKind::Unknown) => true,
-            _ => false,
+        .filter(|d| {
+            matches!(
+                (d, &kind),
+                (
+                    scte35::SpliceDescriptor::Segmentation(_),
+                    DescriptorKind::Segmentation
+                ) | (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail)
+                    | (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf)
+                    | (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time)
+                    | (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio)
+                    | (
+                        scte35::SpliceDescriptor::Unknown { .. },
+                        DescriptorKind::Unknown
+                    )
+            )
         })
         .count();
 
@@ -1224,13 +1241,13 @@ fn normalize_indexed_path(path: &str) -> Option<&'static str> {
     for meta in supported_paths_meta() {
         if meta.path.contains("[i]") {
             let prefix = meta.path.split("[i]").next().unwrap_or("");
-            if path.starts_with(prefix) {
-                let rest = &path[prefix.len()..];
-                if rest.starts_with('[') && rest.contains(']') {
-                    let suffix = meta.path.split("[i]").nth(1).unwrap_or("");
-                    if rest.ends_with(suffix) {
-                        return Some(meta.path);
-                    }
+            if let Some(rest) = path.strip_prefix(prefix)
+                && rest.starts_with('[')
+                && rest.contains(']')
+            {
+                let suffix = meta.path.split("[i]").nth(1).unwrap_or("");
+                if rest.ends_with(suffix) {
+                    return Some(meta.path);
                 }
             }
         }
@@ -2010,19 +2027,22 @@ fn descriptor_mut(
     section: &mut SpliceInfoSection,
     kind: DescriptorKind,
 ) -> Result<&mut scte35::SpliceDescriptor, String> {
-    let index =
-        section
-            .splice_descriptors
-            .iter()
-            .position(|descriptor| match (descriptor, &kind) {
-                (scte35::SpliceDescriptor::Segmentation(_), DescriptorKind::Segmentation) => true,
-                (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail) => true,
-                (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf) => true,
-                (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time) => true,
-                (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio) => true,
-                (scte35::SpliceDescriptor::Unknown { .. }, DescriptorKind::Unknown) => true,
-                _ => false,
-            });
+    let index = section.splice_descriptors.iter().position(|descriptor| {
+        matches!(
+            (descriptor, &kind),
+            (
+                scte35::SpliceDescriptor::Segmentation(_),
+                DescriptorKind::Segmentation
+            ) | (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail)
+                | (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf)
+                | (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time)
+                | (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio)
+                | (
+                    scte35::SpliceDescriptor::Unknown { .. },
+                    DescriptorKind::Unknown
+                )
+        )
+    });
 
     let idx = match index {
         Some(idx) => idx,
@@ -2093,14 +2113,21 @@ fn descriptor_at(
     kind: DescriptorKind,
     index: usize,
 ) -> Result<&mut scte35::SpliceDescriptor, String> {
-    let matches_kind = |descriptor: &scte35::SpliceDescriptor| match (descriptor, &kind) {
-        (scte35::SpliceDescriptor::Segmentation(_), DescriptorKind::Segmentation) => true,
-        (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail) => true,
-        (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf) => true,
-        (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time) => true,
-        (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio) => true,
-        (scte35::SpliceDescriptor::Unknown { .. }, DescriptorKind::Unknown) => true,
-        _ => false,
+    let matches_kind = |descriptor: &scte35::SpliceDescriptor| {
+        matches!(
+            (descriptor, &kind),
+            (
+                scte35::SpliceDescriptor::Segmentation(_),
+                DescriptorKind::Segmentation
+            ) | (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail)
+                | (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf)
+                | (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time)
+                | (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio)
+                | (
+                    scte35::SpliceDescriptor::Unknown { .. },
+                    DescriptorKind::Unknown
+                )
+        )
     };
 
     let mut indices = section
@@ -2362,14 +2389,21 @@ fn remove_descriptor_at(
     kind: DescriptorKind,
     index: usize,
 ) -> Result<(), String> {
-    let matches_kind = |descriptor: &scte35::SpliceDescriptor| match (descriptor, &kind) {
-        (scte35::SpliceDescriptor::Segmentation(_), DescriptorKind::Segmentation) => true,
-        (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail) => true,
-        (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf) => true,
-        (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time) => true,
-        (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio) => true,
-        (scte35::SpliceDescriptor::Unknown { .. }, DescriptorKind::Unknown) => true,
-        _ => false,
+    let matches_kind = |descriptor: &scte35::SpliceDescriptor| {
+        matches!(
+            (descriptor, &kind),
+            (
+                scte35::SpliceDescriptor::Segmentation(_),
+                DescriptorKind::Segmentation
+            ) | (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail)
+                | (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf)
+                | (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time)
+                | (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio)
+                | (
+                    scte35::SpliceDescriptor::Unknown { .. },
+                    DescriptorKind::Unknown
+                )
+        )
     };
 
     let mut indices = section
@@ -3733,10 +3767,10 @@ fn parse_message_bytes(bytes: &[u8], settings: ParseSettings) -> Result<Scte35Do
 
 fn detect_format(input: &str) -> Result<InputFormat, String> {
     let trimmed = input.trim();
-    if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        if serde_json::from_str::<serde_json::Value>(trimmed).is_ok() {
-            return Ok(InputFormat::Json);
-        }
+    if (trimmed.starts_with('{') || trimmed.starts_with('['))
+        && serde_json::from_str::<serde_json::Value>(trimmed).is_ok()
+    {
+        return Ok(InputFormat::Json);
     }
 
     let hex_candidate = trimmed.strip_prefix("0x").unwrap_or(trimmed).trim();
@@ -3754,10 +3788,8 @@ fn detect_format(input: &str) -> Result<InputFormat, String> {
 
 fn is_hex_candidate(input: &str) -> bool {
     let len = input.len();
-    if len == 0 || (len % 2) != 0 {
+    if len == 0 || !len.is_multiple_of(2) {
         return false;
     }
-    input
-        .bytes()
-        .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))
+    input.bytes().all(|b| b.is_ascii_hexdigit())
 }

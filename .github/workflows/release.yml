@@ -40,22 +40,34 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: scte35-injector
-            asset_name: scte35-injector-linux-amd64
+            artifact_name: scte35-editor
+            asset_name: scte35-editor-linux-amd64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: scte35-injector
-            asset_name: scte35-injector-macos-amd64
+            artifact_name: scte35-editor
+            asset_name: scte35-editor-macos-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: scte35-injector
-            asset_name: scte35-injector-macos-arm64
+            artifact_name: scte35-editor
+            asset_name: scte35-editor-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: scte35-injector.exe
-            asset_name: scte35-injector-windows-amd64.exe
+            artifact_name: scte35-editor.exe
+            asset_name: scte35-editor-windows-amd64.exe
     steps:
       - uses: actions/checkout@v4
+      - name: Install Linux TUI dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libfontconfig1-dev
+      - name: Install macOS TUI dependencies
+        if: matrix.os == 'macos-latest'
+        run: brew install pkg-config fontconfig
+      - name: Install Windows TUI dependencies
+        if: matrix.os == 'windows-latest'
+        run: |
+          git clone https://github.com/microsoft/vcpkg C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+          C:\vcpkg\vcpkg.exe install fontconfig:x64-windows
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -64,6 +76,10 @@ jobs:
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig
+          VCPKG_ROOT: C:\vcpkg
+          VCPKG_DEFAULT_TRIPLET: x64-windows
 
       - name: Strip binary (Linux and macOS)
         if: matrix.os != 'windows-latest'

@@ -141,12 +141,11 @@ fn run_loop<B: ratatui::backend::Backend>(
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_millis(0));
-        if event::poll(timeout).map_err(|err| format!("poll error: {err}"))? {
-            if let Event::Key(key) = event::read().map_err(|err| format!("read error: {err}"))? {
-                if handle_key(app, key)? {
-                    break;
-                }
-            }
+        if event::poll(timeout).map_err(|err| format!("poll error: {err}"))?
+            && let Event::Key(key) = event::read().map_err(|err| format!("read error: {err}"))?
+            && handle_key(app, key)?
+        {
+            break;
         }
         if last_tick.elapsed() >= tick_rate {
             last_tick = Instant::now();
@@ -216,10 +215,10 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool, String> {
                         app.status = format!("Template selected: {label}");
                         return Ok(false);
                     }
-                    if item.label.ends_with(".add") {
-                        if let Some(indexed) = expand_add_path(&app.document, &path) {
-                            create_path = indexed;
-                        }
+                    if item.label.ends_with(".add")
+                        && let Some(indexed) = expand_add_path(&app.document, &path)
+                    {
+                        create_path = indexed;
                     }
                     let changes = vec![(create_path.clone(), value)];
                     match app.document.apply_sets(&changes) {
@@ -327,14 +326,21 @@ fn count_descriptors(doc: &Scte35Document, kind: DescriptorKind) -> usize {
     doc.section()
         .splice_descriptors
         .iter()
-        .filter(|descriptor| match (descriptor, kind) {
-            (scte35::SpliceDescriptor::Segmentation(_), DescriptorKind::Segmentation) => true,
-            (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail) => true,
-            (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf) => true,
-            (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time) => true,
-            (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio) => true,
-            (scte35::SpliceDescriptor::Unknown { .. }, DescriptorKind::Unknown) => true,
-            _ => false,
+        .filter(|descriptor| {
+            matches!(
+                (descriptor, kind),
+                (
+                    scte35::SpliceDescriptor::Segmentation(_),
+                    DescriptorKind::Segmentation
+                ) | (scte35::SpliceDescriptor::Avail(_), DescriptorKind::Avail)
+                    | (scte35::SpliceDescriptor::Dtmf(_), DescriptorKind::Dtmf)
+                    | (scte35::SpliceDescriptor::Time(_), DescriptorKind::Time)
+                    | (scte35::SpliceDescriptor::Audio(_), DescriptorKind::Audio)
+                    | (
+                        scte35::SpliceDescriptor::Unknown { .. },
+                        DescriptorKind::Unknown
+                    )
+            )
         })
         .count()
 }
