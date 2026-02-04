@@ -26,6 +26,7 @@ pub struct InteractiveArgs {
 pub enum Mode {
     Browse,
     Edit,
+    Select,
     ConfirmWrite,
 }
 
@@ -41,6 +42,9 @@ pub struct App {
     navigator: TreeNavigator,
     start_requires_template: bool,
     output_to_write: Option<String>,
+    pub(crate) select_options: Vec<String>,
+    pub(crate) select_index: usize,
+    pub(crate) select_path: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -79,6 +83,9 @@ impl App {
             navigator: TreeNavigator::new(),
             start_requires_template,
             output_to_write: None,
+            select_options: Vec::new(),
+            select_index: 0,
+            select_path: None,
         }
     }
 
@@ -164,19 +171,58 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool, String> {
                     .handle_key(key, &app.tree_nodes, &mut app.tree_state);
             }
             KeyCode::Char('e') | KeyCode::Char('E') => {
-                app.mode = Mode::Edit;
                 app.input_buffer.clear();
-                if let Some(item) = app.selected_item() {
-                    if let Some(path) = item.path.as_deref() {
-                        let value = item.value.as_deref().unwrap_or("");
-                        app.input_buffer = format!("{path}={value}");
-                        app.status = "Edit mode: update path=value and press Enter".to_string();
-                    } else {
-                        app.status = "Edit mode: enter path=value".to_string();
+                let (path, value) = match app.selected_item() {
+                    Some(item) => (
+                        item.path.as_deref().map(|path| path.to_string()),
+                        item.value.as_deref().unwrap_or("").to_string(),
+                    ),
+                    None => (None, String::new()),
+                };
+                if let Some(path) = path {
+                    if let Some(meta) = crate::core::patch_meta(&path) {
+                        match meta.value_type {
+                            crate::core::PatchValueType::Bool => {
+                                let selected = if value == "true" { "true" } else { "false" };
+                                app.select_options = vec!["true".into(), "false".into()];
+                                app.select_index = if selected == "true" { 0 } else { 1 };
+                                app.select_path = Some(path);
+                                app.mode = Mode::Select;
+                                app.status = "Select value: Up/Down, Enter to apply, Esc to cancel"
+                                    .to_string();
+                                return Ok(false);
+                            }
+                            crate::core::PatchValueType::SpliceCommand => {
+                                let options = [
+                                    "splice_null",
+                                    "splice_insert",
+                                    "time_signal",
+                                    "splice_schedule",
+                                    "bandwidth_reservation",
+                                    "private_command",
+                                ];
+                                app.select_options =
+                                    options.iter().map(|s| s.to_string()).collect();
+                                app.select_index = options
+                                    .iter()
+                                    .position(|option| *option == value)
+                                    .unwrap_or(0);
+                                app.select_path = Some(path);
+                                app.mode = Mode::Select;
+                                app.status = "Select value: Up/Down, Enter to apply, Esc to cancel"
+                                    .to_string();
+                                return Ok(false);
+                            }
+                            _ => {}
+                        }
                     }
-                } else {
-                    app.status = "Edit mode: enter path=value".to_string();
+                    app.input_buffer = format!("{path}={value}");
+                    app.mode = Mode::Edit;
+                    app.status = "Edit mode: update path=value and press Enter".to_string();
+                    return Ok(false);
                 }
+                app.mode = Mode::Edit;
+                app.status = "Edit mode: enter path=value".to_string();
             }
             KeyCode::Char('w') | KeyCode::Char('W') => {
                 app.mode = Mode::ConfirmWrite;
@@ -286,6 +332,51 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Result<bool, String> {
             }
             KeyCode::Char(ch) => {
                 app.input_buffer.push(ch);
+            }
+            _ => {}
+        },
+        Mode::Select => match key.code {
+            KeyCode::Up => {
+                if !app.select_options.is_empty() {
+                    app.select_index = app.select_index.saturating_sub(1);
+                }
+            }
+            KeyCode::Down => {
+                if !app.select_options.is_empty() {
+                    app.select_index =
+                        (app.select_index + 1).min(app.select_options.len().saturating_sub(1));
+                }
+            }
+            KeyCode::Enter => {
+                let Some(path) = app.select_path.clone() else {
+                    app.status = "Select mode: missing path".to_string();
+                    app.mode = Mode::Browse;
+                    return Ok(false);
+                };
+                let Some(value) = app.select_options.get(app.select_index).cloned() else {
+                    app.status = "Select mode: missing value".to_string();
+                    app.mode = Mode::Browse;
+                    return Ok(false);
+                };
+                let changes = vec![(path.clone(), value)];
+                match app.document.apply_sets(&changes) {
+                    Ok(()) => {
+                        app.status = "Applied".to_string();
+                        app.tree_nodes = build_tree(&app.document);
+                    }
+                    Err(err) => {
+                        app.status = err;
+                    }
+                }
+                app.mode = Mode::Browse;
+                app.select_options.clear();
+                app.select_path = None;
+            }
+            KeyCode::Esc => {
+                app.mode = Mode::Browse;
+                app.status = "Selection canceled".to_string();
+                app.select_options.clear();
+                app.select_path = None;
             }
             _ => {}
         },

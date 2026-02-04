@@ -33,6 +33,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 
     let input = match app.mode {
         Mode::Edit => format!("edit: {}", app.input_buffer),
+        Mode::Select => selection_line(app),
         Mode::ConfirmWrite => "confirm write: y/n".to_string(),
         Mode::Browse => "browse: press E to edit, W to write, Q/Esc to exit".to_string(),
     };
@@ -90,4 +91,16 @@ fn status_line(app: &App) -> String {
 
 fn footer_hints() -> String {
     "Arrows navigate | E edit | C create | D delete | W write | Q/Esc exit".to_string()
+}
+
+fn selection_line(app: &App) -> String {
+    if app.select_options.is_empty() {
+        return "select: no options".to_string();
+    }
+    let value = app
+        .select_options
+        .get(app.select_index)
+        .map(|value| value.as_str())
+        .unwrap_or("-");
+    format!("select: {} (Up/Down, Enter apply, Esc cancel)", value)
 }

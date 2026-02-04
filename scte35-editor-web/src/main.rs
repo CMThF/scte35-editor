@@ -1,4 +1,6 @@
-use scte35_editor::core::{OutputFormat, ParseSettings, Scte35Document, patch_meta};
+use scte35_editor::core::{
+    OutputFormat, ParseSettings, PatchValueType, Scte35Document, patch_meta,
+};
 use scte35_editor::io::InputFormat;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
@@ -506,6 +508,12 @@ fn app() -> Html {
     }
 
     let selected_meta = selected_path.as_ref().and_then(|path| patch_meta(path));
+    let is_bool_field = selected_meta
+        .map(|meta| matches!(meta.value_type, PatchValueType::Bool))
+        .unwrap_or(false);
+    let is_splice_command_field = selected_meta
+        .map(|meta| matches!(meta.value_type, PatchValueType::SpliceCommand))
+        .unwrap_or(false);
 
     html! {
         <div class="app">
@@ -603,24 +611,76 @@ fn app() -> Html {
                         </label>
                         <label>
                             {"Value"}
-                            <input
-                                class={classes!(
-                                    "input",
-                                    if error_field_path
-                                        .as_ref()
-                                        .and_then(|path| selected_path.as_ref().map(|selected| selected == path))
-                                        .unwrap_or(false)
-                                    {
-                                        "input--error"
+                            {
+                                if is_bool_field || is_splice_command_field {
+                                    let on_change = {
+                                        let edit_value = edit_value.clone();
+                                        Callback::from(move |e: Event| {
+                                            let value = e
+                                                .target_dyn_into::<web_sys::HtmlSelectElement>()
+                                                .map(|select| select.value())
+                                                .unwrap_or_default();
+                                            edit_value.set(value);
+                                        })
+                                    };
+                                    let options: Vec<&'static str> = if is_bool_field {
+                                        vec!["true", "false"]
                                     } else {
-                                        ""
+                                        vec![
+                                            "splice_null",
+                                            "splice_insert",
+                                            "time_signal",
+                                            "splice_schedule",
+                                            "bandwidth_reservation",
+                                            "private_command",
+                                        ]
+                                    };
+                                    let selected_value = (*edit_value).clone();
+                                    html! {
+                                        <select
+                                            class={classes!(
+                                                "input",
+                                                if error_field_path
+                                                    .as_ref()
+                                                    .and_then(|path| selected_path.as_ref().map(|selected| selected == path))
+                                                    .unwrap_or(false)
+                                                {
+                                                    "input--error"
+                                                } else {
+                                                    ""
+                                                }
+                                            )}
+                                            onchange={on_change}
+                                            value={selected_value}
+                                        >
+                                            { for options.into_iter().map(|value| {
+                                                html! { <option value={value}>{value}</option> }
+                                            })}
+                                        </select>
                                     }
-                                )}
-                                type="text"
-                                value={(*edit_value).clone()}
-                                oninput={on_edit_value}
-                                placeholder="Edit value here"
-                            />
+                                } else {
+                                    html! {
+                                        <input
+                                            class={classes!(
+                                                "input",
+                                                if error_field_path
+                                                    .as_ref()
+                                                    .and_then(|path| selected_path.as_ref().map(|selected| selected == path))
+                                                    .unwrap_or(false)
+                                                {
+                                                    "input--error"
+                                                } else {
+                                                    ""
+                                                }
+                                            )}
+                                            type="text"
+                                            value={(*edit_value).clone()}
+                                            oninput={on_edit_value}
+                                            placeholder="Edit value here"
+                                        />
+                                    }
+                                }
+                            }
                         </label>
                         <div class="meta">
                             <span>
