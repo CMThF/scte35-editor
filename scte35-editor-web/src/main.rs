@@ -18,6 +18,8 @@ fn app() -> Html {
     let flash_active = use_state(|| false);
     let flash_token = use_state(|| 0u32);
     let error_field_path = use_state(|| None::<String>);
+    let new_menu_open = use_state(|| false);
+    let new_template = use_state(|| "time_signal".to_string());
     let tree_items = use_state(Vec::<TreeItem>::new);
     let selected_path = use_state(|| None::<String>);
     let edit_value = use_state(String::new);
@@ -131,7 +133,26 @@ fn app() -> Html {
         })
     };
 
-    let on_new_time_signal = {
+    let on_new_menu_toggle = {
+        let new_menu_open = new_menu_open.clone();
+        Callback::from(move |_| {
+            new_menu_open.set(!*new_menu_open);
+        })
+    };
+
+    let on_new_template_change = {
+        let new_template = new_template.clone();
+        Callback::from(move |e: Event| {
+            let value = e
+                .target_dyn_into::<web_sys::HtmlSelectElement>()
+                .map(|select| select.value())
+                .unwrap_or_else(|| "time_signal".to_string());
+            new_template.set(value);
+        })
+    };
+
+    let on_new_create = {
+        let new_template = new_template.clone();
         let output = output.clone();
         let status = status.clone();
         let status_is_error = status_is_error.clone();
@@ -143,7 +164,15 @@ fn app() -> Html {
         let edit_value = edit_value.clone();
         let current_doc_json = current_doc_json.clone();
         Callback::from(move |_| {
-            match Scte35Document::new_default_time_signal()
+            let template = (*new_template).clone();
+            let new_doc = match template.as_str() {
+                "time_signal" => Scte35Document::new_default_time_signal(),
+                "splice_null" => Scte35Document::new_default_splice_null(),
+                "splice_insert" => Scte35Document::new_default_splice_insert(),
+                "splice_schedule" => Scte35Document::new_default_splice_schedule(),
+                _ => Err("Unknown template".to_string()),
+            };
+            match new_doc
                 .and_then(|doc| {
                     let json = doc.render(OutputFormat::Json)?;
                     Ok((doc, json))
@@ -152,7 +181,7 @@ fn app() -> Html {
             {
                 Ok((doc, json, rendered)) => {
                     output.set(Some(rendered));
-                    status.set("New time_signal created".to_string());
+                    status.set(format!("New {template} created"));
                     status_is_error.set(false);
                     error_field_path.set(None);
                     let items = build_tree_items(&doc);
@@ -293,10 +322,8 @@ fn app() -> Html {
         })
     };
 
-    let on_create = {
+    let on_create_for = {
         let current_doc_json = current_doc_json.clone();
-        let selected_path = selected_path.clone();
-        let edit_value = edit_value.clone();
         let no_crc = no_crc.clone();
         let strict = strict.clone();
         let output = output.clone();
@@ -306,16 +333,9 @@ fn app() -> Html {
         let flash_token = flash_token.clone();
         let error_field_path = error_field_path.clone();
         let tree_items = tree_items.clone();
-        Callback::from(move |_| {
-            let path = selected_path.as_deref().unwrap_or("");
-            if path.is_empty() {
-                status.set("Select a path to create".to_string());
-                status_is_error.set(true);
-                flash_active.set(true);
-                flash_token.set(*flash_token + 1);
-                error_field_path.set(None);
-                return;
-            }
+        let selected_path = selected_path.clone();
+        let edit_value = edit_value.clone();
+        Callback::from(move |(path, value): (String, String)| {
             let Some(json) = current_doc_json.as_ref() else {
                 status.set("No document loaded".to_string());
                 status_is_error.set(true);
@@ -343,12 +363,11 @@ fn app() -> Html {
                     return;
                 }
             };
-            let value = (*edit_value).clone();
-            let mut create_path = path.to_string();
+            let mut create_path = path.clone();
             if let Some(indexed) = expand_add_path(&doc, &create_path) {
                 create_path = indexed;
             }
-            let changes = vec![(create_path.clone(), value)];
+            let changes = vec![(create_path.clone(), value.clone())];
             if let Err(err) = doc.apply_sets(&changes) {
                 status.set(err);
                 status_is_error.set(true);
@@ -380,6 +399,10 @@ fn app() -> Html {
                 }
             };
             let items = build_tree_items(&doc);
+            if let Some(first) = items.first() {
+                selected_path.set(first.path.clone());
+                edit_value.set(first.value.clone().unwrap_or_default());
+            }
             tree_items.set(items);
             current_doc_json.set(Some(json));
             output.set(Some(rendered));
@@ -389,9 +412,8 @@ fn app() -> Html {
         })
     };
 
-    let on_delete = {
+    let on_delete_for = {
         let current_doc_json = current_doc_json.clone();
-        let selected_path = selected_path.clone();
         let no_crc = no_crc.clone();
         let strict = strict.clone();
         let output = output.clone();
@@ -401,24 +423,9 @@ fn app() -> Html {
         let flash_token = flash_token.clone();
         let error_field_path = error_field_path.clone();
         let tree_items = tree_items.clone();
-        Callback::from(move |_| {
-            let path = selected_path.as_deref().unwrap_or("");
-            if path.is_empty() {
-                status.set("Select a path to delete".to_string());
-                status_is_error.set(true);
-                flash_active.set(true);
-                flash_token.set(*flash_token + 1);
-                error_field_path.set(None);
-                return;
-            }
-            let Some(target) = delete_target_from_path(path) else {
-                status.set("Selected path is not deletable".to_string());
-                status_is_error.set(true);
-                flash_active.set(true);
-                flash_token.set(*flash_token + 1);
-                error_field_path.set(Some(path.to_string()));
-                return;
-            };
+        let selected_path = selected_path.clone();
+        let edit_value = edit_value.clone();
+        Callback::from(move |target: String| {
             let Some(json) = current_doc_json.as_ref() else {
                 status.set("No document loaded".to_string());
                 status_is_error.set(true);
@@ -477,6 +484,10 @@ fn app() -> Html {
                 }
             };
             let items = build_tree_items(&doc);
+            if let Some(first) = items.first() {
+                selected_path.set(first.path.clone());
+                edit_value.set(first.value.clone().unwrap_or_default());
+            }
             tree_items.set(items);
             current_doc_json.set(Some(json));
             output.set(Some(rendered));
@@ -535,11 +546,22 @@ fn app() -> Html {
                     <div class="tree">
                         { for tree_items.iter().cloned().map(|item| {
                             let on_select = on_select.clone();
+                            let on_create_for = on_create_for.clone();
+                            let on_delete_for = on_delete_for.clone();
                             let error_field_path = error_field_path.clone();
                             let is_selected = selected_path
                                 .as_ref()
                                 .map(|path| item.path.as_ref() == Some(path))
                                 .unwrap_or(false);
+                            let createable = item
+                                .path
+                                .as_ref()
+                                .map(|path| path.ends_with(".add") || path.contains(".add"))
+                                .unwrap_or(false);
+                            let delete_target = item
+                                .path
+                                .as_deref()
+                                .and_then(delete_target_from_path);
                             let is_error = error_field_path
                                 .as_ref()
                                 .and_then(|path| item.path.as_ref().map(|item_path| item_path == path))
@@ -556,10 +578,43 @@ fn app() -> Html {
                                 "tree__item"
                             };
                             let label = item.label.clone();
+                            let item_for_select = item.clone();
                             html! {
-                                <button class={class} onclick={Callback::from(move |_| on_select.emit(item.clone()))}>
-                                    {label}
-                                </button>
+                                <div class="tree__row">
+                                    <button class={class} onclick={Callback::from(move |_| on_select.emit(item_for_select.clone()))}>
+                                        {label}
+                                    </button>
+                                    {
+                                        if createable {
+                                            let path = item.path.clone().unwrap_or_default();
+                                            let value = item.value.clone().unwrap_or_default();
+                                            html! {
+                                                <button
+                                                    class="tree__action tree__action--create"
+                                                    onclick={Callback::from(move |_| on_create_for.emit((path.clone(), value.clone())))}
+                                                >
+                                                    {"Create"}
+                                                </button>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                    {
+                                        if let Some(target) = delete_target {
+                                            html! {
+                                                <button
+                                                    class="tree__action tree__action--delete"
+                                                    onclick={Callback::from(move |_| on_delete_for.emit(target.clone()))}
+                                                >
+                                                    {"Delete"}
+                                                </button>
+                                            }
+                                        } else {
+                                            html! {}
+                                        }
+                                    }
+                                </div>
                             }
                         })}
                     </div>
@@ -594,11 +649,29 @@ fn app() -> Html {
                     />
                     <div class="actions">
                         <button onclick={on_parse}>{"Parse"}</button>
-                        <button onclick={on_new_time_signal}>{"New time_signal"}</button>
                         <button onclick={on_apply}>{"Apply"}</button>
-                        <button onclick={on_create}>{"Create"}</button>
-                        <button onclick={on_delete}>{"Delete"}</button>
+                        <button onclick={on_new_menu_toggle}>{"New"}</button>
                     </div>
+                    {
+                        if *new_menu_open {
+                            html! {
+                                <div class="new-menu">
+                                    <label>
+                                        {"Template "}
+                                        <select onchange={on_new_template_change} value={(*new_template).clone()}>
+                                            <option value="time_signal">{"time_signal"}</option>
+                                            <option value="splice_null">{"splice_null"}</option>
+                                            <option value="splice_insert">{"splice_insert"}</option>
+                                            <option value="splice_schedule">{"splice_schedule"}</option>
+                                        </select>
+                                    </label>
+                                    <button onclick={on_new_create}>{"Create"}</button>
+                                </div>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
                     <div class="editor">
                         <label>
                             {"Selected path"}
@@ -801,38 +874,43 @@ fn count_descriptors(doc: &Scte35Document, kind: DescriptorKind) -> usize {
         .count()
 }
 
-fn parse_index(path: &str, prefix: &str) -> Option<usize> {
+fn parse_index_only(path: &str, prefix: &str) -> Option<usize> {
     let rest = path.strip_prefix(prefix)?;
     let rest = rest.strip_prefix('[')?;
     let mut parts = rest.splitn(2, ']');
     let index_str = parts.next()?;
     let index = index_str.parse::<usize>().ok()?;
-    Some(index)
+    let remainder = parts.next().unwrap_or("");
+    if remainder.is_empty() {
+        Some(index)
+    } else {
+        None
+    }
 }
 
 fn delete_target_from_path(path: &str) -> Option<String> {
-    if let Some(index) = parse_index(path, "splice_insert.component") {
+    if let Some(index) = parse_index_only(path, "splice_insert.component") {
         return Some(format!("splice_insert.component[{index}]"));
     }
-    if let Some(index) = parse_index(path, "splice_schedule.component") {
+    if let Some(index) = parse_index_only(path, "splice_schedule.component") {
         return Some(format!("splice_schedule.component[{index}]"));
     }
-    if let Some(index) = parse_index(path, "segmentation") {
+    if let Some(index) = parse_index_only(path, "segmentation") {
         return Some(format!("segmentation[{index}]"));
     }
-    if let Some(index) = parse_index(path, "avail") {
+    if let Some(index) = parse_index_only(path, "avail") {
         return Some(format!("avail[{index}]"));
     }
-    if let Some(index) = parse_index(path, "dtmf") {
+    if let Some(index) = parse_index_only(path, "dtmf") {
         return Some(format!("dtmf[{index}]"));
     }
-    if let Some(index) = parse_index(path, "time") {
+    if let Some(index) = parse_index_only(path, "time") {
         return Some(format!("time[{index}]"));
     }
-    if let Some(index) = parse_index(path, "audio") {
+    if let Some(index) = parse_index_only(path, "audio") {
         return Some(format!("audio[{index}]"));
     }
-    if let Some(index) = parse_index(path, "unknown") {
+    if let Some(index) = parse_index_only(path, "unknown") {
         return Some(format!("unknown[{index}]"));
     }
     None
@@ -988,6 +1066,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 value: Some(insert.avails_expected.to_string()),
             });
             for (index, component) in insert.components.iter().enumerate() {
+                items.push(TreeItem {
+                    label: format!("splice_insert.component[{index}]"),
+                    path: Some(format!("splice_insert.component[{index}]")),
+                    value: None,
+                });
                 let pts_time = component
                     .splice_time
                     .as_ref()
@@ -1081,6 +1164,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             });
             for (index, component) in schedule.component_list.iter().enumerate() {
                 items.push(TreeItem {
+                    label: format!("splice_schedule.component[{index}]"),
+                    path: Some(format!("splice_schedule.component[{index}]")),
+                    value: None,
+                });
+                items.push(TreeItem {
                     label: format!(
                         "splice_schedule.component[{index}].tag: {}",
                         component.component_tag
@@ -1147,6 +1235,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             scte35::SpliceDescriptor::Segmentation(seg) => {
                 let index = segmentation_index;
                 segmentation_index += 1;
+                items.push(TreeItem {
+                    label: format!("segmentation[{index}]"),
+                    path: Some(format!("segmentation[{index}]")),
+                    value: None,
+                });
                 items.push(TreeItem {
                     label: format!(
                         "segmentation[{index}].event_id: {}",
@@ -1285,6 +1378,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 let index = avail_index;
                 avail_index += 1;
                 items.push(TreeItem {
+                    label: format!("avail[{index}]"),
+                    path: Some(format!("avail[{index}]")),
+                    value: None,
+                });
+                items.push(TreeItem {
                     label: format!(
                         "avail[{index}].provider_id: {} bytes",
                         avail.provider_avail_id.len()
@@ -1301,6 +1399,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             scte35::SpliceDescriptor::Dtmf(dtmf) => {
                 let index = dtmf_index;
                 dtmf_index += 1;
+                items.push(TreeItem {
+                    label: format!("dtmf[{index}]"),
+                    path: Some(format!("dtmf[{index}]")),
+                    value: None,
+                });
                 items.push(TreeItem {
                     label: format!("dtmf[{index}].preroll: {}", dtmf.preroll),
                     path: Some(format!("dtmf[{index}].preroll")),
@@ -1320,6 +1423,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             scte35::SpliceDescriptor::Time(time) => {
                 let index = time_index;
                 time_index += 1;
+                items.push(TreeItem {
+                    label: format!("time[{index}]"),
+                    path: Some(format!("time[{index}]")),
+                    value: None,
+                });
                 items.push(TreeItem {
                     label: format!(
                         "time[{index}].tai_seconds: {} bytes",
@@ -1348,6 +1456,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 let index = audio_index;
                 audio_index += 1;
                 items.push(TreeItem {
+                    label: format!("audio[{index}]"),
+                    path: Some(format!("audio[{index}]")),
+                    value: None,
+                });
+                items.push(TreeItem {
                     label: format!(
                         "audio[{index}].components: {} bytes",
                         audio.audio_components.len()
@@ -1368,6 +1481,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             } => {
                 let index = unknown_index;
                 unknown_index += 1;
+                items.push(TreeItem {
+                    label: format!("unknown[{index}]"),
+                    path: Some(format!("unknown[{index}]")),
+                    value: None,
+                });
                 items.push(TreeItem {
                     label: format!("unknown[{index}].tag: {}", tag),
                     path: Some(format!("unknown[{index}].tag")),

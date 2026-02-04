@@ -61,6 +61,12 @@
         flex-direction: column;
         gap: 6px;
       }
+      .tree__row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 8px;
+        align-items: center;
+      }
       .tree__item {
         text-align: left;
         padding: 8px 10px;
@@ -162,6 +168,18 @@
         font-weight: 600;
         cursor: pointer;
       }
+      .tree__action {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 8px;
+        min-width: 72px;
+      }
+      .tree__action--create {
+        background: #305e55;
+      }
+      .tree__action--delete {
+        background: var(--error);
+      }
       button:hover {
         opacity: 0.9;
       }
@@ -171,6 +189,20 @@
         background: #f6f1eb;
         border-radius: 8px;
         overflow: auto;
+      }
+      .new-menu {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .new-menu label {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted);
       }
       .app__footer {
         padding: 12px 32px;
