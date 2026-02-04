@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/CMThF/scte35-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/CMThF/scte35-editor/actions/workflows/ci.yml)
 [![Release](https://github.com/CMThF/scte35-editor/actions/workflows/release.yml/badge.svg)](https://github.com/CMThF/scte35-editor/actions/workflows/release.yml)
+[![Pages](https://github.com/CMThF/scte35-editor/actions/workflows/pages.yml/badge.svg)](https://github.com/CMThF/scte35-editor/actions/workflows/pages.yml)
 
 `scte35-editor` is a pragmatic CLI (and interactive TUI) for creating, editing, validating, and inspecting SCTE-35 splice_info_section messages. It accepts JSON, base64, or hex inputs and outputs either a single format or a combined JSON blob with JSON + base64 + hex.
 
@@ -28,6 +29,7 @@ This repository targets:
 - Rust toolchain (`cargo`).
 - System `pkg-config` and `fontconfig` development files for the TUI stack.
 - `PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig` on Ubuntu when building or testing.
+- For the web app: `trunk` and the `wasm32-unknown-unknown` target.
 
 ## CLI overview
 
@@ -168,6 +170,19 @@ Use `--output-file` to write output to a file.
 ```bash
 scte35-editor show "/DAWAAAAAAAAAP/wBQb+Qjo1vQAAuwxz9A==" \
   --output-file ./out.json
+```
+
+## Web app (WASM)
+
+The web editor lives in `scte35-editor-web` and is built with Yew + Trunk.
+
+### Local dev
+
+```bash
+cd scte35-editor/scte35-editor-web
+rustup target add wasm32-unknown-unknown
+cargo install trunk
+trunk serve
 ```
 
 ## Testing remote validation
