@@ -512,8 +512,7 @@ fn app() -> Html {
     html! {
         <div class="app">
             <header class="app__header">
-                <h1>{"scte35-editor (WASM)"}</h1>
-                <p>{"WYSIWYG tree editor (Yew)"}</p>
+                <h1>{"scte35-editor"}</h1>
                 <div class={
                     classes!(
                         "status",
