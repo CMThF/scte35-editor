@@ -11,6 +11,7 @@ fn render_base64_roundtrip() {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed");
@@ -27,6 +28,7 @@ fn render_hex_roundtrip() {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed");
@@ -43,6 +45,7 @@ fn render_json_roundtrip() {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed");
@@ -52,6 +55,7 @@ fn render_json_roundtrip() {
         InputFormat::Json,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("json parse failed");

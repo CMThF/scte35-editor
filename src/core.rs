@@ -9,6 +9,7 @@ use std::time::Duration;
 #[derive(Copy, Clone, Debug)]
 pub struct ParseSettings {
     pub validate_crc: bool,
+    pub strict: bool,
 }
 
 #[derive(Debug)]
@@ -1255,7 +1256,7 @@ fn normalize_indexed_path(path: &str) -> Option<&'static str> {
     None
 }
 impl Scte35Document {
-    pub(crate) fn section(&self) -> &SpliceInfoSection {
+    pub fn section(&self) -> &SpliceInfoSection {
         &self.section
     }
 
@@ -1290,8 +1291,19 @@ impl Scte35Document {
         };
         match format {
             InputFormat::Json => {
-                let section = serde_json::from_str::<SpliceInfoSection>(input)
-                    .map_err(|err| format!("json parse error: {err}"))?;
+                let mut ignored = Vec::new();
+                let section: SpliceInfoSection = serde_ignored::deserialize(
+                    &mut serde_json::Deserializer::from_str(input),
+                    |path| ignored.push(path.to_string()),
+                )
+                .map_err(|err| format!("json parse error: {err}"))?;
+                if settings.strict && !ignored.is_empty() {
+                    ignored.sort();
+                    return Err(format!(
+                        "json contains unknown fields: {}",
+                        ignored.join(", ")
+                    ));
+                }
                 Ok(Self { section })
             }
             InputFormat::Base64 => {
@@ -2445,6 +2457,7 @@ mod tests {
             InputFormat::Auto,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("expected error");
@@ -3042,6 +3055,7 @@ mod tests {
             InputFormat::Auto,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("auto error");
@@ -3051,6 +3065,7 @@ mod tests {
             InputFormat::Base64,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("base64 error");
@@ -3060,6 +3075,7 @@ mod tests {
             InputFormat::Hex,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("hex error");
@@ -3069,6 +3085,7 @@ mod tests {
             InputFormat::Json,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("json error");
@@ -3078,6 +3095,7 @@ mod tests {
             InputFormat::Hex,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("hex parse error");
@@ -3089,11 +3107,25 @@ mod tests {
         let doc = time_signal_doc();
         let hex = doc.render(OutputFormat::Hex).expect("render hex");
         let bytes = hex::decode(hex).expect("decode");
-        parse_message_bytes(&bytes, ParseSettings { validate_crc: true }).expect("crc ok");
+        parse_message_bytes(
+            &bytes,
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
+        )
+        .expect("crc ok");
         let mut bad = bytes.clone();
         let last = bad.len() - 1;
         bad[last] ^= 0xFF;
-        let err = parse_message_bytes(&bad, ParseSettings { validate_crc: true }).expect_err("crc");
+        let err = parse_message_bytes(
+            &bad,
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
+        )
+        .expect_err("crc");
         assert!(err.contains("parse error") || err.contains("crc"));
     }
 
@@ -3106,6 +3138,7 @@ mod tests {
             &bytes,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect("parse");
@@ -3117,6 +3150,7 @@ mod tests {
             &[],
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect_err("parse error");
@@ -3143,22 +3177,32 @@ mod tests {
             InputFormat::Json,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect("parse json");
         let _ = parsed.render(OutputFormat::Json).expect("render");
 
         let hex = doc.render(OutputFormat::Hex).expect("hex");
-        let parsed =
-            Scte35Document::parse(&hex, InputFormat::Hex, ParseSettings { validate_crc: true })
-                .expect("parse hex");
+        let parsed = Scte35Document::parse(
+            &hex,
+            InputFormat::Hex,
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
+        )
+        .expect("parse hex");
         let _ = parsed.render(OutputFormat::Json).expect("render");
 
         let b64 = doc.render(OutputFormat::Base64).expect("base64");
         let parsed = Scte35Document::parse(
             &b64,
             InputFormat::Base64,
-            ParseSettings { validate_crc: true },
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
         )
         .expect("parse base64");
         let _ = parsed.render(OutputFormat::Json).expect("render");
@@ -3173,6 +3217,7 @@ mod tests {
             InputFormat::Auto,
             ParseSettings {
                 validate_crc: false,
+                strict: false,
             },
         )
         .expect("parse auto json");
@@ -3180,14 +3225,20 @@ mod tests {
         let _ = Scte35Document::parse(
             &hex,
             InputFormat::Auto,
-            ParseSettings { validate_crc: true },
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
         )
         .expect("parse auto hex");
         let b64 = doc.render(OutputFormat::Base64).expect("base64");
         let _ = Scte35Document::parse(
             &b64,
             InputFormat::Auto,
-            ParseSettings { validate_crc: true },
+            ParseSettings {
+                validate_crc: true,
+                strict: false,
+            },
         )
         .expect("parse auto base64");
     }

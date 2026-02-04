@@ -19,6 +19,7 @@ pub struct InteractiveArgs {
     pub output_format: OutputFormat,
     pub output_file: Option<PathBuf>,
     pub no_crc: bool,
+    pub strict: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

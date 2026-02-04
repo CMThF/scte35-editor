@@ -13,6 +13,7 @@ fn edit_pts_time() {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed");
@@ -36,6 +37,7 @@ fn edit_immediate() {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed");
@@ -294,6 +296,7 @@ fn new_splice_insert_doc() -> Scte35Document {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed")
@@ -323,6 +326,7 @@ fn new_splice_schedule_doc() -> Scte35Document {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed")
@@ -345,6 +349,7 @@ fn new_time_signal_doc() -> Scte35Document {
         InputFormat::Base64,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     )
     .expect("parse failed")

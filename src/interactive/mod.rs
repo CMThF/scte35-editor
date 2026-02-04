@@ -15,6 +15,7 @@ pub fn run(args: &InteractiveArgs) -> Result<(), String> {
             args.input_format,
             ParseSettings {
                 validate_crc: !args.no_crc,
+                strict: args.strict,
             },
         )?;
         (document, false)
@@ -26,6 +27,7 @@ pub fn run(args: &InteractiveArgs) -> Result<(), String> {
             args.input_format,
             ParseSettings {
                 validate_crc: !args.no_crc,
+                strict: args.strict,
             },
         )?;
         (document, false)

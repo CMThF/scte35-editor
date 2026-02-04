@@ -1,13 +1,24 @@
+#[cfg(feature = "tui")]
 use clap::Parser;
+#[cfg(feature = "tui")]
 use scte35_editor::cli::Cli;
 
 fn main() {
-    if let Err(err) = run_with_args(std::env::args()) {
-        eprintln!("error: {err}");
+    #[cfg(feature = "tui")]
+    {
+        if let Err(err) = run_with_args(std::env::args()) {
+            eprintln!("error: {err}");
+            std::process::exit(1);
+        }
+    }
+    #[cfg(not(feature = "tui"))]
+    {
+        eprintln!("scte35-editor built without TUI/CLI support");
         std::process::exit(1);
     }
 }
 
+#[cfg(feature = "tui")]
 fn run_with_args<I, T>(args: I) -> Result<(), String>
 where
     I: IntoIterator<Item = T>,
@@ -18,6 +29,7 @@ where
 }
 
 #[cfg(test)]
+#[cfg(feature = "tui")]
 mod tests {
     use super::run_with_args;
 

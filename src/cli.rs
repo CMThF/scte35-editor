@@ -35,18 +35,24 @@ impl Cli {
 #[derive(Subcommand, Debug)]
 enum Command {
     /// Parse input and render output
+    #[command(alias = "s")]
     Show(ShowArgs),
     /// Parse input and validate
+    #[command(alias = "v")]
     Validate(ShowArgs),
     /// Parse input and apply modifications
+    #[command(alias = "e")]
     Edit(EditArgs),
     /// Create a new splice info section from arguments
+    #[command(alias = "n")]
     New(NewArgs),
     /// List supported --set paths
     ListPaths,
     /// Delete an indexed component or descriptor
+    #[command(alias = "d")]
     Delete(DeleteArgs),
     /// Launch interactive editor
+    #[command(alias = "i")]
     Interactive(InteractiveArgs),
 }
 
@@ -73,6 +79,9 @@ pub struct ShowArgs {
     /// Skip CRC validation if supported by the parser
     #[arg(long, default_value_t = false)]
     no_crc: bool,
+    /// Fail on unknown JSON fields
+    #[arg(long, default_value_t = false)]
+    strict: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -91,6 +100,9 @@ pub struct EditArgs {
     output_file: Option<PathBuf>,
     #[arg(long, default_value_t = false)]
     no_crc: bool,
+    /// Fail on unknown JSON fields
+    #[arg(long, default_value_t = false)]
+    strict: bool,
     /// Apply a field update in the form path=value (repeatable)
     #[arg(long = "set", value_name = "PATH=VALUE")]
     set: Vec<String>,
@@ -132,6 +144,9 @@ pub struct InteractiveArgs {
     /// Skip CRC validation if supported by the parser
     #[arg(long, default_value_t = false)]
     no_crc: bool,
+    /// Fail on unknown JSON fields
+    #[arg(long, default_value_t = false)]
+    strict: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -157,6 +172,9 @@ pub struct DeleteArgs {
     /// Skip CRC validation if supported by the parser
     #[arg(long, default_value_t = false)]
     no_crc: bool,
+    /// Fail on unknown JSON fields
+    #[arg(long, default_value_t = false)]
+    strict: bool,
     /// Delete target, e.g. segmentation[0], avail[1], splice_insert.component[2]
     #[arg(long, value_name = "TARGET")]
     target: String,
@@ -192,6 +210,7 @@ fn run_show(args: &ShowArgs) -> Result<(), String> {
         input_format,
         ParseSettings {
             validate_crc: !args.no_crc,
+            strict: args.strict,
         },
     )?;
     let output = render_output(&document, args.output_format)?;
@@ -214,6 +233,7 @@ fn run_validate(args: &ShowArgs) -> Result<(), String> {
         input_format,
         ParseSettings {
             validate_crc: !args.no_crc,
+            strict: args.strict,
         },
     )?;
     let output = match args.output_format {
@@ -246,6 +266,7 @@ fn run_edit(args: &EditArgs) -> Result<(), String> {
         input_format,
         ParseSettings {
             validate_crc: !args.no_crc,
+            strict: args.strict,
         },
     )?;
 
@@ -354,6 +375,7 @@ fn run_delete(args: &DeleteArgs) -> Result<(), String> {
         input_format,
         ParseSettings {
             validate_crc: !args.no_crc,
+            strict: args.strict,
         },
     )?;
     document.delete_target(&args.target)?;
@@ -373,6 +395,7 @@ fn run_interactive(args: &InteractiveArgs) -> Result<(), String> {
         output_format: args.output_format.into(),
         output_file: args.output_file.clone(),
         no_crc: args.no_crc,
+        strict: args.strict,
     };
     interactive::run(&args)
 }
@@ -448,6 +471,7 @@ mod tests {
             output_format: super::OutputFormatCli::Json,
             output_file: None,
             no_crc: false,
+            strict: false,
             target: "segmentation[0]".to_string(),
             list_targets: true,
         };
@@ -607,6 +631,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: false,
+            strict: false,
         };
         let err = run_show(&args).expect_err("expected error");
         assert!(err.contains("expected INPUT"));
@@ -622,6 +647,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
         };
         let result = run_show(&args);
         assert!(result.is_ok());
@@ -637,6 +663,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
         };
         let result = run_show(&args);
         assert!(result.is_ok());
@@ -652,6 +679,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
         };
         let result = run_show(&args);
         assert!(result.is_ok());
@@ -667,6 +695,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
         };
         let result = run_validate(&args);
         assert!(result.is_ok());
@@ -682,6 +711,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: false,
+            strict: false,
             set: Vec::new(),
             list_paths: true,
         };
@@ -699,6 +729,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
             set: Vec::new(),
             list_paths: false,
         };
@@ -716,6 +747,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
             set: vec!["table_id=252".to_string()],
             list_paths: false,
         };
@@ -784,6 +816,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: false,
+            strict: false,
             target: "segmentation[0]".to_string(),
             list_targets: false,
         };
@@ -806,6 +839,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: Some(output_path.clone()),
             no_crc: true,
+            strict: false,
             target: "segmentation[0]".to_string(),
             list_targets: false,
         };
@@ -824,6 +858,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
             target: "splice_insert.component[0]".to_string(),
             list_targets: false,
         };
@@ -841,6 +876,7 @@ mod tests {
             output_format: OutputFormatCli::Json,
             output_file: None,
             no_crc: true,
+            strict: false,
             target: "splice_schedule.component[0]".to_string(),
             list_targets: false,
         };

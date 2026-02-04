@@ -13,6 +13,7 @@ fn detects_json_input() {
         InputFormat::Auto,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     );
     assert!(result.is_ok());
@@ -27,6 +28,7 @@ fn detects_hex_input() {
         InputFormat::Auto,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     );
     assert!(result.is_ok());
@@ -39,6 +41,7 @@ fn detects_base64_input() {
         InputFormat::Auto,
         ParseSettings {
             validate_crc: false,
+            strict: false,
         },
     );
     assert!(result.is_ok());
