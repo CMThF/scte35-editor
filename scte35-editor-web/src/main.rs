@@ -1,8 +1,8 @@
 use scte35_editor::core::{OutputFormat, ParseSettings, Scte35Document, patch_meta};
 use scte35_editor::io::InputFormat;
-use yew::prelude::*;
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
+use yew::prelude::*;
 
 #[function_component(App)]
 fn app() -> Html {
@@ -505,9 +505,7 @@ fn app() -> Html {
         });
     }
 
-    let selected_meta = selected_path
-        .as_ref()
-        .and_then(|path| patch_meta(path));
+    let selected_meta = selected_path.as_ref().and_then(|path| patch_meta(path));
 
     html! {
         <div class="app">
@@ -874,7 +872,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
             let insert_pts = insert.splice_time.as_ref().and_then(|time| time.pts_time);
             let insert_immediate = insert_pts.is_none();
             items.push(TreeItem {
-                label: format!("splice_insert.splice_time.pts_time: {}", insert_pts.unwrap_or(0)),
+                label: format!(
+                    "splice_insert.splice_time.pts_time: {}",
+                    insert_pts.unwrap_or(0)
+                ),
                 path: Some("splice_insert.splice_time.pts_time".to_string()),
                 value: Some(insert_pts.unwrap_or(0).to_string()),
             });
@@ -883,7 +884,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 path: Some("splice_insert.splice_time.immediate".to_string()),
                 value: Some(insert_immediate.to_string()),
             });
-            let duration_value = insert.break_duration.as_ref().map(|d| d.duration).unwrap_or(0);
+            let duration_value = insert
+                .break_duration
+                .as_ref()
+                .map(|d| d.duration)
+                .unwrap_or(0);
             items.push(TreeItem {
                 label: format!("splice_insert.duration: {duration_value}"),
                 path: Some("splice_insert.duration".to_string()),
@@ -930,7 +935,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     .unwrap_or(0);
                 let immediate = component.splice_time.is_none();
                 items.push(TreeItem {
-                    label: format!("splice_insert.component[{index}].tag: {}", component.component_tag),
+                    label: format!(
+                        "splice_insert.component[{index}].tag: {}",
+                        component.component_tag
+                    ),
                     path: Some(format!("splice_insert.component[{index}].tag")),
                     value: Some(component.component_tag.to_string()),
                 });
@@ -958,7 +966,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
         }
         scte35::SpliceCommand::SpliceSchedule(schedule) => {
             items.push(TreeItem {
-                label: format!("splice_schedule.splice_event_id: {}", schedule.splice_event_id),
+                label: format!(
+                    "splice_schedule.splice_event_id: {}",
+                    schedule.splice_event_id
+                ),
                 path: Some("splice_schedule.splice_event_id".to_string()),
                 value: Some(schedule.splice_event_id.to_string()),
             });
@@ -1027,9 +1038,7 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 });
                 let duration_value = component.splice_duration.unwrap_or(0);
                 items.push(TreeItem {
-                    label: format!(
-                        "splice_schedule.component[{index}].duration: {duration_value}"
-                    ),
+                    label: format!("splice_schedule.component[{index}].duration: {duration_value}"),
                     path: Some(format!("splice_schedule.component[{index}].duration")),
                     value: Some(duration_value.to_string()),
                 });
@@ -1038,7 +1047,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!(
                         "splice_schedule.component[{index}].utc_splice_time: {utc_value}"
                     ),
-                    path: Some(format!("splice_schedule.component[{index}].utc_splice_time")),
+                    path: Some(format!(
+                        "splice_schedule.component[{index}].utc_splice_time"
+                    )),
                     value: Some(utc_value.to_string()),
                 });
                 items.push(TreeItem {
@@ -1077,7 +1088,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 let index = segmentation_index;
                 segmentation_index += 1;
                 items.push(TreeItem {
-                    label: format!("segmentation[{index}].event_id: {}", seg.segmentation_event_id),
+                    label: format!(
+                        "segmentation[{index}].event_id: {}",
+                        seg.segmentation_event_id
+                    ),
                     path: Some(format!("segmentation[{index}].event_id")),
                     value: Some(seg.segmentation_event_id.to_string()),
                 });
@@ -1165,7 +1179,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     value: Some(format!("0x{}", hex::encode(&seg.segmentation_upid))),
                 });
                 items.push(TreeItem {
-                    label: format!("segmentation[{index}].type_id: {}", seg.segmentation_type_id),
+                    label: format!(
+                        "segmentation[{index}].type_id: {}",
+                        seg.segmentation_type_id
+                    ),
                     path: Some(format!("segmentation[{index}].type_id")),
                     value: Some(seg.segmentation_type_id.to_string()),
                 });
@@ -1244,7 +1261,10 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 let index = time_index;
                 time_index += 1;
                 items.push(TreeItem {
-                    label: format!("time[{index}].tai_seconds: {} bytes", time.tai_seconds.len()),
+                    label: format!(
+                        "time[{index}].tai_seconds: {} bytes",
+                        time.tai_seconds.len()
+                    ),
                     path: Some(format!("time[{index}].tai_seconds")),
                     value: Some(format!("0x{}", hex::encode(&time.tai_seconds))),
                 });
@@ -1281,7 +1301,11 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     value: Some(audio.identifier.to_string()),
                 });
             }
-            scte35::SpliceDescriptor::Unknown { tag, length: _, data } => {
+            scte35::SpliceDescriptor::Unknown {
+                tag,
+                length: _,
+                data,
+            } => {
                 let index = unknown_index;
                 unknown_index += 1;
                 items.push(TreeItem {
