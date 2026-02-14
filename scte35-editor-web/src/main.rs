@@ -566,6 +566,13 @@ fn app() -> Html {
                                 .as_ref()
                                 .and_then(|path| item.path.as_ref().map(|item_path| item_path == path))
                                 .unwrap_or(false);
+                            let row_class = if item.is_group {
+                                "tree__row tree__row--group"
+                            } else if item.group.is_some() {
+                                "tree__row tree__row--child"
+                            } else {
+                                "tree__row"
+                            };
                             let class = if is_selected {
                                 if is_error {
                                     "tree__item tree__item--selected tree__item--error"
@@ -580,7 +587,7 @@ fn app() -> Html {
                             let label = item.label.clone();
                             let item_for_select = item.clone();
                             html! {
-                                <div class="tree__row">
+                                <div class={row_class}>
                                     <button class={class} onclick={Callback::from(move |_| on_select.emit(item_for_select.clone()))}>
                                         {label}
                                     </button>
@@ -782,6 +789,8 @@ struct TreeItem {
     label: String,
     path: Option<String>,
     value: Option<String>,
+    group: Option<String>,
+    is_group: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -923,21 +932,29 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
         label: format!("table_id: {}", section.table_id),
         path: Some("table_id".to_string()),
         value: Some(section.table_id.to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: format!("pts_adjustment: {}", section.pts_adjustment),
         path: Some("pts_adjustment".to_string()),
         value: Some(section.pts_adjustment.to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: format!("tier: {}", section.tier),
         path: Some("tier".to_string()),
         value: Some(section.tier.to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: format!("cw_index: {}", section.cw_index),
         path: Some("cw_index".to_string()),
         value: Some(section.cw_index.to_string()),
+        group: None,
+        is_group: false,
     });
     let command = match &section.splice_command {
         scte35::SpliceCommand::SpliceNull => "splice_null",
@@ -952,6 +969,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
         label: format!("splice_command: {command}"),
         path: Some("splice_command".to_string()),
         value: Some(command.to_string()),
+        group: None,
+        is_group: false,
     });
 
     match &section.splice_command {
@@ -962,11 +981,15 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 label: format!("splice_time.pts_time: {pts_time}"),
                 path: Some("splice_time.pts_time".to_string()),
                 value: Some(pts_time.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!("splice_time.immediate: {immediate}"),
                 path: Some("splice_time.immediate".to_string()),
                 value: Some(immediate.to_string()),
+                group: None,
+                is_group: false,
             });
         }
         scte35::SpliceCommand::SpliceInsert(insert) => {
@@ -974,6 +997,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 label: format!("splice_insert.splice_event_id: {}", insert.splice_event_id),
                 path: Some("splice_insert.splice_event_id".to_string()),
                 value: Some(insert.splice_event_id.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -982,6 +1007,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.cancel".to_string()),
                 value: Some((insert.splice_event_cancel_indicator != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -990,6 +1017,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.out_of_network".to_string()),
                 value: Some((insert.out_of_network_indicator != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -998,6 +1027,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.program_splice".to_string()),
                 value: Some((insert.program_splice_flag != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -1006,6 +1037,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.splice_immediate".to_string()),
                 value: Some((insert.splice_immediate_flag != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             let insert_pts = insert.splice_time.as_ref().and_then(|time| time.pts_time);
             let insert_immediate = insert_pts.is_none();
@@ -1016,11 +1049,15 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.splice_time.pts_time".to_string()),
                 value: Some(insert_pts.unwrap_or(0).to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!("splice_insert.splice_time.immediate: {insert_immediate}"),
                 path: Some("splice_insert.splice_time.immediate".to_string()),
                 value: Some(insert_immediate.to_string()),
+                group: None,
+                is_group: false,
             });
             let duration_value = insert
                 .break_duration
@@ -1031,11 +1068,15 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 label: format!("splice_insert.duration: {duration_value}"),
                 path: Some("splice_insert.duration".to_string()),
                 value: Some(duration_value.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: "splice_insert.duration.clear".to_string(),
                 path: Some("splice_insert.duration.clear".to_string()),
                 value: Some("true".to_string()),
+                group: None,
+                is_group: false,
             });
             let auto_return = insert
                 .break_duration
@@ -1046,6 +1087,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 label: format!("splice_insert.auto_return: {auto_return}"),
                 path: Some("splice_insert.auto_return".to_string()),
                 value: Some(auto_return.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -1054,22 +1097,30 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_insert.unique_program_id".to_string()),
                 value: Some(insert.unique_program_id.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!("splice_insert.avail_num: {}", insert.avail_num),
                 path: Some("splice_insert.avail_num".to_string()),
                 value: Some(insert.avail_num.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!("splice_insert.avails_expected: {}", insert.avails_expected),
                 path: Some("splice_insert.avails_expected".to_string()),
                 value: Some(insert.avails_expected.to_string()),
+                group: None,
+                is_group: false,
             });
             for (index, component) in insert.components.iter().enumerate() {
                 items.push(TreeItem {
                     label: format!("splice_insert.component[{index}]"),
                     path: Some(format!("splice_insert.component[{index}]")),
                     value: None,
+                    group: Some("splice_insert.components".to_string()),
+                    is_group: true,
                 });
                 let pts_time = component
                     .splice_time
@@ -1084,27 +1135,40 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("splice_insert.component[{index}].tag")),
                     value: Some(component.component_tag.to_string()),
+                    group: Some(format!("splice_insert.component[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("splice_insert.component[{index}].pts_time: {pts_time}"),
                     path: Some(format!("splice_insert.component[{index}].pts_time")),
                     value: Some(pts_time.to_string()),
+                    group: Some(format!("splice_insert.component[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("splice_insert.component[{index}].immediate: {immediate}"),
                     path: Some(format!("splice_insert.component[{index}].immediate")),
                     value: Some(immediate.to_string()),
+                    group: Some(format!("splice_insert.component[{index}]")),
+
+                    is_group: false,
                 });
             }
             items.push(TreeItem {
                 label: "splice_insert.component.add".to_string(),
                 path: Some("splice_insert.component.add".to_string()),
                 value: Some("tag=1,pts=90000".to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: "splice_insert.component.clear".to_string(),
                 path: Some("splice_insert.component.clear".to_string()),
                 value: Some("true".to_string()),
+                group: None,
+                is_group: false,
             });
         }
         scte35::SpliceCommand::SpliceSchedule(schedule) => {
@@ -1115,6 +1179,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_schedule.splice_event_id".to_string()),
                 value: Some(schedule.splice_event_id.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -1123,6 +1189,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_schedule.cancel".to_string()),
                 value: Some((schedule.splice_event_cancel_indicator != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -1131,28 +1199,38 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_schedule.out_of_network".to_string()),
                 value: Some((schedule.out_of_network_indicator != 0).to_string()),
+                group: None,
+                is_group: false,
             });
             let utc_value = schedule.utc_splice_time.unwrap_or(0);
             items.push(TreeItem {
                 label: format!("splice_schedule.utc_splice_time: {utc_value}"),
                 path: Some("splice_schedule.utc_splice_time".to_string()),
                 value: Some(utc_value.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: "splice_schedule.utc_splice_time.clear".to_string(),
                 path: Some("splice_schedule.utc_splice_time.clear".to_string()),
                 value: Some("true".to_string()),
+                group: None,
+                is_group: false,
             });
             let duration_value = schedule.splice_duration.unwrap_or(0);
             items.push(TreeItem {
                 label: format!("splice_schedule.duration: {duration_value}"),
                 path: Some("splice_schedule.duration".to_string()),
                 value: Some(duration_value.to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: "splice_schedule.duration.clear".to_string(),
                 path: Some("splice_schedule.duration.clear".to_string()),
                 value: Some("true".to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: format!(
@@ -1161,12 +1239,16 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                 ),
                 path: Some("splice_schedule.unique_program_id".to_string()),
                 value: Some(schedule.unique_program_id.to_string()),
+                group: None,
+                is_group: false,
             });
             for (index, component) in schedule.component_list.iter().enumerate() {
                 items.push(TreeItem {
                     label: format!("splice_schedule.component[{index}]"),
                     path: Some(format!("splice_schedule.component[{index}]")),
                     value: None,
+                    group: Some("splice_schedule.components".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1175,6 +1257,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("splice_schedule.component[{index}].tag")),
                     value: Some(component.component_tag.to_string()),
+                    group: Some(format!("splice_schedule.component[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1183,12 +1268,18 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("splice_schedule.component[{index}].splice_mode")),
                     value: Some(component.splice_mode_indicator.to_string()),
+                    group: Some(format!("splice_schedule.component[{index}]")),
+
+                    is_group: false,
                 });
                 let duration_value = component.splice_duration.unwrap_or(0);
                 items.push(TreeItem {
                     label: format!("splice_schedule.component[{index}].duration: {duration_value}"),
                     path: Some(format!("splice_schedule.component[{index}].duration")),
                     value: Some(duration_value.to_string()),
+                    group: Some(format!("splice_schedule.component[{index}]")),
+
+                    is_group: false,
                 });
                 let utc_value = component.utc_splice_time.unwrap_or(0);
                 items.push(TreeItem {
@@ -1199,6 +1290,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                         "splice_schedule.component[{index}].utc_splice_time"
                     )),
                     value: Some(utc_value.to_string()),
+                    group: None,
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1207,17 +1300,24 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("splice_schedule.component[{index}].duration_flag")),
                     value: Some((component.duration_flag != 0).to_string()),
+                    group: Some(format!("splice_schedule.component[{index}]")),
+
+                    is_group: false,
                 });
             }
             items.push(TreeItem {
                 label: "splice_schedule.component.add".to_string(),
                 path: Some("splice_schedule.component.add".to_string()),
                 value: Some("tag=1,splice_mode=0,duration=120".to_string()),
+                group: None,
+                is_group: false,
             });
             items.push(TreeItem {
                 label: "splice_schedule.component.clear".to_string(),
                 path: Some("splice_schedule.component.clear".to_string()),
                 value: Some("true".to_string()),
+                group: None,
+                is_group: false,
             });
         }
         _ => {}
@@ -1239,6 +1339,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("segmentation[{index}]"),
                     path: Some(format!("segmentation[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1247,6 +1349,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].event_id")),
                     value: Some(seg.segmentation_event_id.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1255,6 +1360,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].cancel")),
                     value: Some(seg.segmentation_event_cancel_indicator.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1263,17 +1371,26 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].program")),
                     value: Some(seg.program_segmentation_flag.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 let duration_value = seg.segmentation_duration.unwrap_or(0);
                 items.push(TreeItem {
                     label: format!("segmentation[{index}].duration: {duration_value}"),
                     path: Some(format!("segmentation[{index}].duration")),
                     value: Some(duration_value.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("segmentation[{index}].duration.clear"),
                     path: Some(format!("segmentation[{index}].duration.clear")),
                     value: Some("true".to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1282,6 +1399,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].delivery_not_restricted")),
                     value: Some(seg.delivery_not_restricted_flag.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1290,6 +1410,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].web_delivery_allowed")),
                     value: Some(seg.web_delivery_allowed_flag.unwrap_or(false).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1298,6 +1421,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].no_regional_blackout")),
                     value: Some(seg.no_regional_blackout_flag.unwrap_or(false).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1306,6 +1432,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].archive_allowed")),
                     value: Some(seg.archive_allowed_flag.unwrap_or(false).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1314,6 +1443,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].device_restrictions")),
                     value: Some(seg.device_restrictions.unwrap_or(0).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1322,6 +1454,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].upid_type")),
                     value: Some(u8::from(seg.segmentation_upid_type).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1330,6 +1465,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].upid")),
                     value: Some(format!("0x{}", hex::encode(&seg.segmentation_upid))),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1338,11 +1476,17 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].type_id")),
                     value: Some(seg.segmentation_type_id.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("segmentation[{index}].segment_num: {}", seg.segment_num),
                     path: Some(format!("segmentation[{index}].segment_num")),
                     value: Some(seg.segment_num.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1351,6 +1495,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].segments_expected")),
                     value: Some(seg.segments_expected.to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1359,6 +1506,9 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].sub_segment_num")),
                     value: Some(seg.sub_segment_num.unwrap_or(0).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1367,11 +1517,17 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("segmentation[{index}].sub_segments_expected")),
                     value: Some(seg.sub_segments_expected.unwrap_or(0).to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("segmentation[{index}].sub_segment.clear"),
                     path: Some(format!("segmentation[{index}].sub_segment.clear")),
                     value: Some("true".to_string()),
+                    group: Some(format!("segmentation[{index}]")),
+
+                    is_group: false,
                 });
             }
             scte35::SpliceDescriptor::Avail(avail) => {
@@ -1381,6 +1537,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("avail[{index}]"),
                     path: Some(format!("avail[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1389,11 +1547,17 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("avail[{index}].provider_id")),
                     value: Some(format!("0x{}", hex::encode(&avail.provider_avail_id))),
+                    group: Some(format!("avail[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("avail[{index}].identifier: {}", avail.identifier),
                     path: Some(format!("avail[{index}].identifier")),
                     value: Some(avail.identifier.to_string()),
+                    group: Some(format!("avail[{index}]")),
+
+                    is_group: false,
                 });
             }
             scte35::SpliceDescriptor::Dtmf(dtmf) => {
@@ -1403,21 +1567,32 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("dtmf[{index}]"),
                     path: Some(format!("dtmf[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!("dtmf[{index}].preroll: {}", dtmf.preroll),
                     path: Some(format!("dtmf[{index}].preroll")),
                     value: Some(dtmf.preroll.to_string()),
+                    group: Some(format!("dtmf[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("dtmf[{index}].chars: {} bytes", dtmf.dtmf_chars.len()),
                     path: Some(format!("dtmf[{index}].chars")),
                     value: Some(format!("0x{}", hex::encode(&dtmf.dtmf_chars))),
+                    group: Some(format!("dtmf[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("dtmf[{index}].identifier: {}", dtmf.identifier),
                     path: Some(format!("dtmf[{index}].identifier")),
                     value: Some(dtmf.identifier.to_string()),
+                    group: Some(format!("dtmf[{index}]")),
+
+                    is_group: false,
                 });
             }
             scte35::SpliceDescriptor::Time(time) => {
@@ -1427,6 +1602,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("time[{index}]"),
                     path: Some(format!("time[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1435,21 +1612,33 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("time[{index}].tai_seconds")),
                     value: Some(format!("0x{}", hex::encode(&time.tai_seconds))),
+                    group: Some(format!("time[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("time[{index}].tai_ns: {} bytes", time.tai_ns.len()),
                     path: Some(format!("time[{index}].tai_ns")),
                     value: Some(format!("0x{}", hex::encode(&time.tai_ns))),
+                    group: Some(format!("time[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("time[{index}].utc_offset: {} bytes", time.utc_offset.len()),
                     path: Some(format!("time[{index}].utc_offset")),
                     value: Some(format!("0x{}", hex::encode(&time.utc_offset))),
+                    group: Some(format!("time[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("time[{index}].identifier: {}", time.identifier),
                     path: Some(format!("time[{index}].identifier")),
                     value: Some(time.identifier.to_string()),
+                    group: Some(format!("time[{index}]")),
+
+                    is_group: false,
                 });
             }
             scte35::SpliceDescriptor::Audio(audio) => {
@@ -1459,6 +1648,8 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("audio[{index}]"),
                     path: Some(format!("audio[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!(
@@ -1467,11 +1658,17 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     ),
                     path: Some(format!("audio[{index}].components")),
                     value: Some(format!("0x{}", hex::encode(&audio.audio_components))),
+                    group: Some(format!("audio[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("audio[{index}].identifier: {}", audio.identifier),
                     path: Some(format!("audio[{index}].identifier")),
                     value: Some(audio.identifier.to_string()),
+                    group: Some(format!("audio[{index}]")),
+
+                    is_group: false,
                 });
             }
             scte35::SpliceDescriptor::Unknown {
@@ -1485,16 +1682,24 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
                     label: format!("unknown[{index}]"),
                     path: Some(format!("unknown[{index}]")),
                     value: None,
+                    group: Some("descriptors".to_string()),
+                    is_group: true,
                 });
                 items.push(TreeItem {
                     label: format!("unknown[{index}].tag: {}", tag),
                     path: Some(format!("unknown[{index}].tag")),
                     value: Some(tag.to_string()),
+                    group: Some(format!("unknown[{index}]")),
+
+                    is_group: false,
                 });
                 items.push(TreeItem {
                     label: format!("unknown[{index}].data: {} bytes", data.len()),
                     path: Some(format!("unknown[{index}].data")),
                     value: Some(format!("0x{}", hex::encode(data))),
+                    group: Some(format!("unknown[{index}]")),
+
+                    is_group: false,
                 });
             }
         }
@@ -1504,31 +1709,43 @@ fn build_tree_items(document: &Scte35Document) -> Vec<TreeItem> {
         label: "segmentation.add".to_string(),
         path: Some("segmentation.event_id".to_string()),
         value: Some("1".to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: "avail.add".to_string(),
         path: Some("avail.provider_id".to_string()),
         value: Some("0x41424344".to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: "dtmf.add".to_string(),
         path: Some("dtmf.preroll".to_string()),
         value: Some("10".to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: "time.add".to_string(),
         path: Some("time.tai_seconds".to_string()),
         value: Some("0x000000000001".to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: "audio.add".to_string(),
         path: Some("audio.components".to_string()),
         value: Some("0x1122".to_string()),
+        group: None,
+        is_group: false,
     });
     items.push(TreeItem {
         label: "unknown.add".to_string(),
         path: Some("unknown.tag".to_string()),
         value: Some("7".to_string()),
+        group: None,
+        is_group: false,
     });
 
     items
